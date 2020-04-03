@@ -1,0 +1,48 @@
+# run the following script after mysql is deployed:
+# kubectl exec -it mysql-0 -- sh -c /init_component.sh
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+spec:
+  selector:
+    matchLabels:
+      app: mysql
+  updateStrategy:
+    type: RollingUpdate
+  serviceName: mysql
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+        - image: registry.sensetime.com/its-pkg/mysql:5.7
+          name: mysql
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: "123456Pwd!"
+            - name: MYSQL_MYDB_USERNAME
+              value: "mydb"
+            - name: MYSQL_MYDB_PASSWORD
+              value: "p@ssword!"
+          ports:
+            - containerPort: 3306
+              name: mysql
+          volumeMounts:
+            - name: mysql-persistent-storage
+              mountPath: /var/lib/mysql
+            - name: mysql-init
+              subPath: "init_component.sh"
+              mountPath: /init_component.sh
+              readOnly: true
+      volumes:
+        - name: mysql-persistent-storage
+          persistentVolumeClaim:
+            claimName: mysql-pv-claim
+        - name: mysql-init
+          configMap:
+            name: mysql-init
+            defaultMode: 0755

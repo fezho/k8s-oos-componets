@@ -1,0 +1,45 @@
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-init
+data:
+  init_component.sh: |
+    #!/bin/bash
+
+    set -x
+
+    m_mysql_username=${MYSQL_ROOT_USERNAME:-root}
+    m_mysql_password=${MYSQL_ROOT_PASSWORD:-root}
+    m_mysql_mydb_username=${MYSQL_SENSEFACE_USERNAME:-mydb}
+    m_mysql_mydb_password=${MYSQL_SENSEFACE_PASSWORD:-mydb}
+
+    function mysql_status_ready {
+        for ((i=0; i<60; i++));
+        do
+            mysql -u$m_mysql_username -p$m_mysql_password -h127.0.0.1 -P3306 \
+              -e "SHOW DATABASES;"
+
+            if [[ $? -ne 0 ]];then
+                    echo "Mysql is not ready"
+                    sleep 5
+                    continue
+            fi
+        done
+    }
+
+    function mydb {
+        mysql -u$m_mysql_username -p$m_mysql_password -h127.0.0.1 -P3306 \
+          -e "CREATE DATABASE IF NOT EXISTS mydb DEFAULT CHARSET utf8;"
+        mysql -u$m_mysql_username -p$m_mysql_password -h127.0.0.1 -P3306 \
+          -e "CREATE USER IF NOT EXISTS '$m_mysql_mydb_username'@'%' IDENTIFIED BY '$m_mysql_mydb_password';"
+        mysql -u$m_mysql_username -p$m_mysql_password -h127.0.0.1 -P3306 \
+          -e "FLUSH PRIVILEGES;"
+        mysql -u$m_mysql_username -p$m_mysql_password -h127.0.0.1 -P3306 \
+          -e "GRANT ALL ON mydb.* to '$m_mysql_mydb_username'@'%' IDENTIFIED BY '$m_mysql_mydb_password';"
+        mysql -u$m_mysql_username -p$m_mysql_password -h127.0.0.1 -P3306 \
+          -e "FLUSH PRIVILEGES;"
+    }
+
+    mysql_status_ready
+    mydb
